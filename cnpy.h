@@ -18,6 +18,7 @@
 #include<memory>
 #include<stdint.h>
 #include<numeric>
+#include<complex>
 
 namespace cnpy {
 
@@ -63,7 +64,7 @@ namespace cnpy {
     using npz_t = std::map<std::string, NpyArray>; 
 
     char BigEndianTest();
-    char map_type(const std::type_info& t);
+    template<typename T> char map_type();
     template<typename T> std::vector<char> create_npy_header(const std::vector<size_t>& shape);
     void parse_npy_header(FILE* fp,size_t& word_size, std::vector<size_t>& shape, bool& fortran_order);
     void parse_npy_header(unsigned char* buffer,size_t& word_size, std::vector<size_t>& shape, bool& fortran_order);
@@ -154,7 +155,7 @@ namespace cnpy {
             global_header.resize(global_header_size);
             size_t res = fread(&global_header[0],sizeof(char),global_header_size,fp);
             if(res != global_header_size){
-                throw std::runtime_error("npz_save: header read error while adding to existing zip");
+                assert(false && "npz_save: header read error while adding to existing zip");
             }
             fseek(fp,global_header_offset,SEEK_SET);
         }
@@ -232,12 +233,53 @@ namespace cnpy {
         npz_save(zipname, fname, &data[0], shape, mode);
     }
 
+    template<typename T>
+    char map_type()
+    {
+        if(std::is_same<T, float>() || std::is_same<T, double>() || std::is_same<T, long>() || std::is_same<T, double>()) {
+            return 'f';
+        } else if (std::is_same<T, int>() || std::is_same<T,char>() || std::is_same<T,short>() || std::is_same<T,long>() || std::is_same<T,long long>()) {
+            return 'i';
+        } else if (std::is_same<T, unsigned>() || std::is_same<T, int>() || std::is_same<T, unsigned char>() || std::is_same<T, unsigned short>()|| std::is_same<T, unsigned long>() || std::is_same<T,unsigned long long>()) {
+            return 'u';
+        } else if (std::is_same<T, bool>()) {
+            return 'b';
+        } else if (std::is_same<T, std::complex<float>>() || std::is_same<T,std::complex<double>>() || std::is_same<T, std::complex<long double>>()) {
+            return 'c';
+        } else {
+            return '?';
+        }
+        // if(t == typeid(float) ) return 'f';
+        // if(t == typeid(double) ) return 'f';
+        // if(t == typeid(long double) ) return 'f';
+
+        // if(t == typeid(int) ) return 'i';
+        // if(t == typeid(char) ) return 'i';
+        // if(t == typeid(short) ) return 'i';
+        // if(t == typeid(long) ) return 'i';
+        // if(t == typeid(long long) ) return 'i';
+
+        // if(t == typeid(unsigned char) ) return 'u';
+        // if(t == typeid(unsigned short) ) return 'u';
+        // if(t == typeid(unsigned long) ) return 'u';
+        // if(t == typeid(unsigned long long) ) return 'u';
+        // if(t == typeid(unsigned int) ) return 'u';
+
+        // if(t == typeid(bool) ) return 'b';
+
+        // if(t == typeid(std::complex<float>) ) return 'c';
+        // if(t == typeid(std::complex<double>) ) return 'c';
+        // if(t == typeid(std::complex<long double>) ) return 'c';
+
+        // else return '?';
+    }
+
     template<typename T> std::vector<char> create_npy_header(const std::vector<size_t>& shape) {  
 
         std::vector<char> dict;
         dict += "{'descr': '";
         dict += BigEndianTest();
-        dict += map_type(typeid(T));
+        dict += map_type<T>();
         dict += std::to_string(sizeof(T));
         dict += "', 'fortran_order': False, 'shape': (";
         dict += std::to_string(shape[0]);
